@@ -1,3 +1,12 @@
+"""
+Module for CSP formulation.
+
+Variables are a string X_i_j_k with:
+- i: The classroom
+- j: The time slot
+- k: The cleaner
+"""
+
 import utils
 import constraint
 import numpy as np
@@ -39,7 +48,7 @@ def get_problem(cleaners, limits, classrooms) -> constraint.Problem:
             for k in range(K):
                 if cleaners[k][t] and classrooms[c][t]:
                     # Variable exists.
-                    var = f"X_{c}_{t}_{k}"
+                    var = utils.num_to_var(c, t, k)
                     variables.append(var)
                     variables_by_cleaner[k].append(var)
                     variables_by_classroom[c].append(var)
@@ -121,10 +130,18 @@ def main():
         4
     ])
     classrooms = np.array([[1] * 16] * 41)
+    # Simulate some classes not being available all the time.
+    for _ in range(41 // 5):
+        classrooms[np.random.choice(range(41))] = [1] * 4 + [0] * 8 + [1] * 4
 
     problem = get_problem(cleaners, limits, classrooms)
+    solution = problem.getSolution()
+    print(utils.classrooms_per_cleaner(len(cleaners), solution))
+    # utils.print_solution(solution)
 
-    utils.print_solution(problem.getSolution())
+    import local
+
+    local.hill_climbing(classrooms, limits, cleaners, solution)
 
 
 if __name__ == "__main__":
