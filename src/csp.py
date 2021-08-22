@@ -1,90 +1,18 @@
-import re
-from typing import List
-
+import utils
 import constraint
-import matplotlib.pyplot as plt
 import numpy as np
 from constraint import ExactSumConstraint, MaxSumConstraint, BacktrackingSolver
-from matplotlib import cm
 
 
-def classrooms_per_cleaner(n_cleaners, solution) -> List[int]:
+def get_problem(cleaners, limits, classrooms) -> constraint.Problem:
     """
-    :param n_cleaners: The total number of cleaners. Needed cause some might not have corresponding variables.
-    :param solution: The solution to evaluate.
-    :return: A list containing how many classrooms are assigned to each cleaner.
+    :param cleaners: 2D array with each row having the available time slots for each cleaner.
+    :param limits: 1D array with the max number of hours per cleaner. Negative value means no limit.
+    :param classrooms: 2D array with each row having the available time slots for each classroom.
+    :return: The full problem.
+    :raises: ValueError if the time slots of the cleaners are more or less than the ones for the classrooms.
+             ValueError if there are not enough limits to cover the cleaners.
     """
-    vars_per_cleaner = {x: list() for x in range(n_cleaners)}
-    selected = [var for var in solution if solution[var]]
-    for var in selected:
-        # Add each variable to its cleaner.
-        _, _, cleaner = re.search(r"X_(\d+)_(\d+)_(\d+)", var).groups()
-        vars_per_cleaner[int(cleaner)].append(var)
-    # Return how many working time slots for each cleaner.
-    return [len(vars_per_cleaner[c]) for c in range(n_cleaners)]
-
-
-def solution_std(n_cleaners, solution) -> float:
-    """
-    :param n_cleaners: The total number of cleaners. Needed cause some might not have corresponding variables.
-    :param solution: The solution to evaluate.
-    :return: The standard deviation of the rooms per cleaner.
-    """
-    return float(np.std(np.array(classrooms_per_cleaner(n_cleaners, solution))))
-
-
-def print_solution(solution):
-    """
-    Prints the given solution in a human-readable format.
-    """
-    selected = [var for var in solution if solution[var]]
-    for var in selected:
-        classroom, time, cleaner = re.search(r"X_(\d+)_(\d+)_(\d+)", var).groups()
-        print(f"Classroom {classroom} is going to be cleaned at hour {time} by {cleaner}")
-
-
-def draw_solution(n_classrooms, n_time_slots, n_cleaners, solution) -> None:
-    """
-    Show a solution as a time (rows) by class (columns) time-table, with cells being color-coded to cleaners.
-
-    :param n_classrooms: The number of classrooms.
-    :param n_time_slots: The number of time-slots.
-    :param n_cleaners: The number of cleaners.
-    :param solution: The solution to display.
-    """
-    selected = [var for var in solution if solution[var]]
-    colors = cm.tab20(range(n_cleaners))
-
-    image = np.zeros((n_time_slots, n_classrooms, 4))
-    for var in selected:
-        classroom, time, cleaner = re.search(r"X_(\d+)_(\d+)_(\d+)", var).groups()
-        image[int(time), int(classroom)] = colors[int(cleaner)]
-
-    plt.imshow(image)
-    plt.show()
-
-
-def main():
-    cleaners = np.array([
-        [0] * 16,
-        [0] * 16,
-        [0] * 16,
-        [1] * 16,
-        [1] * 16,
-        [1] * 16,
-        [1] * 16
-    ])
-    limits = np.array([
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        -1,
-        4
-    ])
-    classrooms = np.array([[1] * 16] * 41)
-
     # Constants can be inferred from above.
     if cleaners.shape[1] != classrooms.shape[1]:
         raise ValueError(f"{cleaners.shape[1]} time slots for cleaners, but {classrooms.shape[1]} for classrooms.")
@@ -170,10 +98,33 @@ def main():
 
     print(f"Added constraints of type 4")
 
-    for sol in problem.getSolutionIter():
-        # print(classrooms_per_cleaner(K, sol))
-        print(solution_std(K, sol))
-        # draw_solution(N, T, K, sol)
+    return problem
+
+
+def main():
+    cleaners = np.array([
+        [0] * 16,
+        [0] * 16,
+        [0] * 16,
+        [1] * 16,
+        [1] * 16,
+        [1] * 16,
+        [1] * 16
+    ])
+    limits = np.array([
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        4
+    ])
+    classrooms = np.array([[1] * 16] * 41)
+
+    problem = get_problem(cleaners, limits, classrooms)
+
+    utils.print_solution(problem.getSolution())
 
 
 if __name__ == "__main__":
