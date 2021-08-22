@@ -98,31 +98,46 @@ def hill_climbing(classrooms, limits, cleaners, max_consecutive, solution):
     print(f"I have {len(actions)} possible actions.")
 
     def is_valid_action(action):
+        FLAG = False
         one_c, one_t, one_k = action[1]
         zero_c, zero_t, zero_k = action[0]
 
+        if one_c == zero_c and one_k == zero_k == 6:
+            FLAG = True
+            print(f"Action of moving class {one_c} for guy 6 from {one_t} to {zero_t}.")
+
         # Check if classroom can be cleaned and worker can work.
         if not cleaners[zero_k][zero_t] or not classrooms[zero_c][zero_t]:
+            if FLAG:
+                print("Rejected at condition 1.")
             return False
 
         # Needs to be same class.
         if one_c == zero_c:
             # Destination worker must not be already somewhere else.
             if 1 in variables[:, zero_t, zero_k]:
+                if FLAG:
+                    print("Rejected at condition 2.")
                 return False
         else:
+            if FLAG:
+                print("Rejected at condition 3.")
             return False
 
-        # Ensure I do not exceed the limit of the new worker
-        if 0 <= limits[zero_k] < slots_per_cleaner[zero_k] + 1:
+        # Ensure I do not exceed the limit of the new worker (if it was changed)
+        if zero_k != one_k and (0 <= limits[zero_k] < slots_per_cleaner[zero_k] + 1):
+            if FLAG:
+                print("Rejected at condition 4.")
             return False
 
         # Ensure no consecutive 5 slot shifts are formed.
         # TODO not optimized
-        working_when = np.copy(np.sum(variables[:, :, zero_k], axis=0))
+        working_when = np.sum(variables[:, :, zero_k], axis=0)
         working_when[zero_t] = 1  # Pretend to assign the classroom.
         for i in range(0, n_time_slots - max_consecutive - 1):
             if np.sum(working_when[i:i + max_consecutive + 1]) > max_consecutive:
+                if FLAG:
+                    print("Rejected at condition 5.")
                 return False
 
         # Check worker is only in one place.
@@ -146,5 +161,10 @@ def hill_climbing(classrooms, limits, cleaners, max_consecutive, solution):
 
     # I must be able to compute the total cost.
     sorted_actions = list(sorted(zip(valid_actions, working_time, workload_std), key=lambda x: (x[1], x[2])))
-    print(sorted_actions)
+
+    print(sorted_actions[:100])
+
+    print("But why tho")
+    # print(list(filter(lambda x: x[0][2] == 6 and x[1][2] == 6, actions)))
+
     utils.draw_solution(cleaners, limits, classrooms, solution)
