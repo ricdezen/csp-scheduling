@@ -15,7 +15,7 @@ def total_working_time(variables) -> int:
     :param variables: The current assignment.
     :return: The sum of the working hours for each worker.
     """
-    N, T, K = variables.shape
+    _, _, K = variables.shape
     total_time = 0
     for k in range(K):
         # When does the person work.
@@ -27,6 +27,16 @@ def total_working_time(variables) -> int:
         # Works last - first + 1 total slots.
         total_time += working_slots[-1] - working_slots[0] + 1
     return total_time
+
+
+def total_std(variables) -> float:
+    """
+    :param variables: The current assignment.
+    :return: The standard deviations of the workload per worker.
+    """
+    _, _, K = variables.shape
+    time_per_worker = [np.sum(variables[:, :, k]) for k in range(K)]
+    return float(np.std(np.array(time_per_worker)))
 
 
 def act(variables, action):
@@ -62,9 +72,7 @@ def hill_climbing(classrooms, limits, cleaners, max_consecutive, solution):
 
     # Step 2: improve trying to reduce total work-time (work + breaks) of personnel.
 
-    n_time_slots = cleaners.shape[1]
-    n_cleaners = cleaners.shape[0]
-    n_classrooms = classrooms.shape[0]
+    n_classrooms, n_time_slots, n_cleaners = utils.problem_size(cleaners, limits, classrooms)
 
     # Used later to check limits.
     slots_per_cleaner = utils.classrooms_per_cleaner(n_cleaners, solution)
@@ -125,16 +133,18 @@ def hill_climbing(classrooms, limits, cleaners, max_consecutive, solution):
 
     print(f"I have {len(valid_actions)} valid actions that I can take.")
 
-    results = list()
+    working_time = list()
+    workload_std = list()
     for a in valid_actions:
         # Apply action
         act(variables, a)
         # Compute working time
-        results.append(total_working_time(variables))
+        working_time.append(total_working_time(variables))
+        workload_std.append(total_std(variables))
         # Revert action
         revert(variables, a)
 
     # I must be able to compute the total cost.
-    sorted_actions = list(sorted(zip(valid_actions, results), key=lambda x: x[1]))
-    print(sorted_actions[0])
-    utils.draw_solution(n_classrooms, n_time_slots, n_cleaners, solution)
+    sorted_actions = list(sorted(zip(valid_actions, working_time, workload_std), key=lambda x: (x[1], x[2])))
+    print(sorted_actions)
+    utils.draw_solution(cleaners, limits, classrooms, solution)

@@ -17,6 +17,22 @@ def var_to_num(var: str) -> Tuple[int, int, int]:
     return int(classroom), int(time_slot), int(cleaner)
 
 
+def problem_size(cleaners, limits, classrooms) -> Tuple[int, int, int]:
+    """
+    Infer problem size.
+    :return: A tuple made of the number of classrooms, the number of timeslots, the number of workers.
+    :raises: ValueError if the time slots of the cleaners are more or less than the ones for the classrooms.
+             ValueError if there are not enough limits to cover the cleaners.
+    """
+    # Constants can be inferred directly from data size.
+    if cleaners.shape[1] != classrooms.shape[1]:
+        raise ValueError(f"{cleaners.shape[1]} time slots for cleaners, but {classrooms.shape[1]} for classrooms.")
+    if cleaners.shape[0] != limits.shape[0]:
+        raise ValueError(f"{cleaners.shape[0]} cleaners found but {limits.shape[0]} time slot limits.")
+
+    return classrooms.shape[0], cleaners.shape[1], cleaners.shape[0]
+
+
 def classrooms_per_cleaner(n_cleaners, solution) -> List[int]:
     """
     :param n_cleaners: The total number of cleaners. Needed cause some might not have corresponding variables.
@@ -52,19 +68,26 @@ def print_solution(solution):
         print(f"Classroom {classroom} is going to be cleaned at hour {time} by {cleaner}")
 
 
-def draw_solution(n_classrooms: int, n_time_slots: int, n_cleaners: int, solution) -> None:
+def draw_solution(cleaners, limits, classrooms, solution) -> None:
     """
     Show a solution as a time (rows) by class (columns) time-table, with cells being color-coded to cleaners.
 
-    :param n_classrooms: The number of classrooms.
-    :param n_time_slots: The number of time-slots.
-    :param n_cleaners: The number of cleaners.
+    :param cleaners: The worker's schedule.
+    :param limits: The time slot limits for each worker.
+    :param classrooms: The available slots for each classroom.
     :param solution: The solution to display.
     """
+    n_classrooms, n_time_slots, n_cleaners = problem_size(cleaners, limits, classrooms)
+
     selected = [var for var in solution if solution[var]]
     colors = cm.tab20(range(n_cleaners))
 
     image = np.zeros((n_time_slots, n_classrooms, 4))
+    for c in range(n_classrooms):
+        for t in range(n_time_slots):
+            if not classrooms[c][t]:
+                image[t, c] = (0.5, 0.5, 0.5, 1)
+
     for var in selected:
         classroom, time, cleaner = var_to_num(var)
         image[time, classroom] = colors[cleaner]

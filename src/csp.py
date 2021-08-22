@@ -20,19 +20,9 @@ def get_problem(cleaners, limits, classrooms) -> constraint.Problem:
     :param cleaners: 2D array with each row having the available time slots for each cleaner.
     :param limits: 1D array with the max number of hours per cleaner. Negative value means no limit.
     :param classrooms: 2D array with each row having the available time slots for each classroom.
-    :return: The full problem.
-    :raises: ValueError if the time slots of the cleaners are more or less than the ones for the classrooms.
-             ValueError if there are not enough limits to cover the cleaners.
+    :return: The csp problem.
     """
-    # Constants can be inferred from above.
-    if cleaners.shape[1] != classrooms.shape[1]:
-        raise ValueError(f"{cleaners.shape[1]} time slots for cleaners, but {classrooms.shape[1]} for classrooms.")
-    if cleaners.shape[0] != limits.shape[0]:
-        raise ValueError(f"{cleaners.shape[0]} cleaners found but {limits.shape[0]} hourly limits.")
-
-    n_time_slots = cleaners.shape[1]
-    n_cleaners = cleaners.shape[0]
-    n_classrooms = classrooms.shape[0]
+    n_classrooms, n_time_slots, n_cleaners = utils.problem_size(cleaners, limits, classrooms)
 
     print(f"We have: {n_time_slots} time slots, {n_cleaners} cleaners and {n_classrooms} classrooms.")
 
