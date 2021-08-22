@@ -12,6 +12,8 @@ import constraint
 import numpy as np
 from constraint import ExactSumConstraint, MaxSumConstraint, BacktrackingSolver
 
+MAX_CONSECUTIVE_SLOTS = 4
+
 
 def get_problem(cleaners, limits, classrooms) -> constraint.Problem:
     """
@@ -28,24 +30,23 @@ def get_problem(cleaners, limits, classrooms) -> constraint.Problem:
     if cleaners.shape[0] != limits.shape[0]:
         raise ValueError(f"{cleaners.shape[0]} cleaners found but {limits.shape[0]} hourly limits.")
 
-    T = cleaners.shape[1]
-    K = cleaners.shape[0]
-    N = classrooms.shape[0]
-    MAX_CONSECUTIVE_SLOTS = 4
+    n_time_slots = cleaners.shape[1]
+    n_cleaners = cleaners.shape[0]
+    n_classrooms = classrooms.shape[0]
 
-    print(f"We have: {T} time slots, {K} cleaners and {N} classrooms.")
+    print(f"We have: {n_time_slots} time slots, {n_cleaners} cleaners and {n_classrooms} classrooms.")
 
     problem = constraint.Problem()
     problem.setSolver(BacktrackingSolver(True))
 
     # I need to construct my variables.
     variables = list()
-    variables_by_cleaner = {x: list() for x in range(K)}
-    variables_by_classroom = {x: list() for x in range(N)}
-    variables_by_time_slot = {x: list() for x in range(T)}
-    for c in range(N):
-        for t in range(T):
-            for k in range(K):
+    variables_by_cleaner = {x: list() for x in range(n_cleaners)}
+    variables_by_classroom = {x: list() for x in range(n_classrooms)}
+    variables_by_time_slot = {x: list() for x in range(n_time_slots)}
+    for c in range(n_classrooms):
+        for t in range(n_time_slots):
+            for k in range(n_cleaners):
                 if cleaners[k][t] and classrooms[c][t]:
                     # Variable exists.
                     var = utils.num_to_var(c, t, k)
@@ -57,7 +58,7 @@ def get_problem(cleaners, limits, classrooms) -> constraint.Problem:
     print(f"The problem has {len(variables)} variables.")
 
     # Ensure there are no classrooms with no variables.
-    for c in range(N):
+    for c in range(n_classrooms):
         if not variables_by_classroom[c]:
             raise ValueError(f"Classroom {c} cannot be cleaned, problem has no solution.")
 
@@ -65,7 +66,7 @@ def get_problem(cleaners, limits, classrooms) -> constraint.Problem:
     problem.addVariables(variables, [0, 1])
 
     # Constraint 1: each classroom must be cleaned only once.
-    for c in range(N):
+    for c in range(n_classrooms):
         # Ensure classroom has variables.
         if variables_by_classroom[c]:
             problem.addConstraint(ExactSumConstraint(1), variables_by_classroom[c])
@@ -73,8 +74,8 @@ def get_problem(cleaners, limits, classrooms) -> constraint.Problem:
     print(f"Added constraints of type 1")
 
     # Constraint 2: no ubiquitous cleaners.
-    for k in range(K):
-        for t in range(T):
+    for k in range(n_cleaners):
+        for t in range(n_time_slots):
             possible_classrooms = set(variables_by_cleaner[k]).intersection(set(variables_by_time_slot[t]))
             # Ensure the cleaner can clean a certain class at a certain moment.
             if possible_classrooms:
@@ -83,9 +84,9 @@ def get_problem(cleaners, limits, classrooms) -> constraint.Problem:
     print(f"Added constraints of type 2")
 
     # Constraint 3: cleaners need a break every 4 consecutive classrooms.
-    for k in range(K):
+    for k in range(n_cleaners):
         vars_by_cleaner = set(variables_by_cleaner[k])
-        for x in range(0, T - MAX_CONSECUTIVE_SLOTS):
+        for x in range(0, n_time_slots - MAX_CONSECUTIVE_SLOTS):
             # For each possible 5 consecutive time slots, max 4 classrooms.
             possible_classrooms = set()
             # Essentially sum over all class on the 5 consecutive time slots.
@@ -101,7 +102,7 @@ def get_problem(cleaners, limits, classrooms) -> constraint.Problem:
     print(f"Added constraints of type 3")
 
     # Constraint 4: cleaners have some upper total time slot limit.
-    for k in range(K):
+    for k in range(n_cleaners):
         if limits[k] >= 0 and variables_by_cleaner[k]:
             problem.addConstraint(MaxSumConstraint(limits[k]), variables_by_cleaner[k])
 
@@ -141,7 +142,7 @@ def main():
 
     import local
 
-    local.hill_climbing(classrooms, limits, cleaners, solution)
+    local.hill_climbing(classrooms, limits, cleaners, MAX_CONSECUTIVE_SLOTS, solution)
 
 
 if __name__ == "__main__":
