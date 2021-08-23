@@ -1,9 +1,11 @@
 import re
+import inspect
 import numpy as np
 import matplotlib.pyplot as plt
 
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 from matplotlib import cm
+from common import Problem
 
 _variable_regex = re.compile(r"X_(\d+)_(\d+)_(\d+)")
 
@@ -33,12 +35,56 @@ def problem_size(workers, limits, classrooms) -> Tuple[int, int, int]:
     return classrooms.shape[0], workers.shape[1], workers.shape[0]
 
 
+def existing_variables(workers, classrooms) -> np.ndarray:
+    """
+    Get which variables exist. Assumes workers and classrooms are valid according to `problem_size`.
+
+    :return: A matrix where matrix[i,j,k] indicates whether variable X_i_j_k exists in the problem.
+    """
+    n_classrooms, n_time_slots, n_workers = classrooms.shape[0], workers.shape[1], workers.shape[0]
+    variables_exist = np.zeros((n_classrooms, n_time_slots, n_workers))
+    for c in range(n_classrooms):
+        for t in range(n_time_slots):
+            for w in range(n_workers):
+                if workers[w][t] and classrooms[c][t]:
+                    variables_exist[c, t, w] = 1
+    return variables_exist
+
+
+def dictionary_to_matrix(problem: Problem, solution: dict) -> np.ndarray:
+    """
+    :param problem: The problem to which the solution refers to, used to get size.
+    :param solution: The solution as returned by the csp solver.
+    :return: A 3D matrix representing the solution, where matrix[i,j,k] is the value of X_i_j_k.
+    """
+    variables = np.zeros((problem.n_classrooms, problem.n_time_slots, problem.n_workers))
+    for var, value in solution.items():
+        c, t, w = var_to_num(var)
+        variables[c, t, w] = value
+    return variables
+
+
+def matrix_to_dictionary(problem: Problem, variables: np.ndarray) -> Dict:
+    """
+    :param problem: The problem to which the assignment refers to.
+    :param variables: The assignment to be converted to dictionary.
+    :return: A dictionary representing the assignment in the context of the given problem.
+    """
+    solution = dict()
+    for c in range(problem.n_classrooms):
+        for t in range(problem.n_time_slots):
+            for w in range(problem.n_workers):
+                if problem.existing_variables[c, t, w]:
+                    solution[num_to_var(c, t, w)] = variables[c, t, w]
+    return solution
+
+
 def workload(variables) -> List[int]:
     """
     :param variables: The current assignment matrix.
     :return: A list with the working time slots per worker.
     """
-    return [int(np.sum(variables[:, :, k])) for k in range(variables.shape[2])]
+    return [int(np.sum(variables[:, :, w])) for w in range(variables.shape[2])]
 
 
 def total_working_time(variables) -> int:
@@ -48,11 +94,11 @@ def total_working_time(variables) -> int:
     :param variables: The current assignment matrix.
     :return: The sum of the working hours for each worker.
     """
-    _, _, K = variables.shape
+    _, _, n_workers = variables.shape
     total_time = 0
-    for k in range(K):
+    for w in range(n_workers):
         # When does the person work.
-        working_when = np.sum(variables[:, :, k], axis=0)
+        working_when = np.sum(variables[:, :, w], axis=0)
         working_slots = np.nonzero(working_when)[0]
         # Does not work, skip
         if len(working_slots) == 0:
@@ -76,28 +122,25 @@ def print_solution(solution):
     """
     selected = [var for var in solution if solution[var]]
     for var in selected:
-        classroom, time, cleaner = var_to_num(var)
-        print(f"Classroom {classroom} is going to be cleaned at hour {time} by {cleaner}")
+        classroom, time, worker = var_to_num(var)
+        print(f"Classroom {classroom} is going to be cleaned at hour {time} by {worker}")
 
 
-def draw_solution(workers, limits, classrooms, solution) -> None:
+def draw_solution(problem: Problem, solution):
     """
-    Show a solution as a time (rows) by class (columns) time-table, with cells being color-coded to cleaners.
+    Show a solution as a time (rows) by classroom (columns) time-table, with cells being color-coded to workers.
 
-    :param workers: The worker's schedule.
-    :param limits: The time slot limits for each worker.
-    :param classrooms: The available slots for each classroom.
+    :param problem: The problem.
     :param solution: The solution to display.
     """
-    n_classrooms, n_time_slots, n_workers = problem_size(workers, limits, classrooms)
 
     selected = [var for var in solution if solution[var]]
-    colors = cm.tab20(range(n_workers))
+    colors = cm.tab20(range(problem.n_workers))
 
-    image = np.zeros((n_time_slots, n_classrooms, 4))
-    for c in range(n_classrooms):
-        for t in range(n_time_slots):
-            if not classrooms[c][t]:
+    image = np.zeros((problem.n_time_slots, problem.n_classrooms, 4))
+    for c in range(problem.n_classrooms):
+        for t in range(problem.n_time_slots):
+            if not problem.classrooms[c][t]:
                 image[t, c] = (0.5, 0.5, 0.5, 1)
 
     for var in selected:
@@ -118,3 +161,10 @@ def random_choice(array) -> tuple:
     if len(array.shape) > 1:
         return (choice,) + random_choice(array[choice])
     return choice,
+
+
+def who() -> str:
+    """
+    :return: The name of the function that called this function, surrounded by square brackets.
+    """
+    return "[" + inspect.stack()[1].function + "]"
