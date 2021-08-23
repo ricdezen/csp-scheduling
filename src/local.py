@@ -62,19 +62,18 @@ def _hill_climbing(
         variables: np.ndarray
 ):
     """
-    Implementation of `hill_climbing`. Does not need to cache references at each recursive step.
+    Actual implementation of the `hill_climbing` function. Does not need to cache references at each recursive step.
     """
-    # Step 1: improve attempting to balance the workload (std of classes per cleaner)
+    # Try to reduce total work-time (work + breaks) of personnel, without penalizing std of workload.
 
-    # Step 2: improve trying to reduce total work-time (work + breaks) of personnel.
-    # Cache some constants.
-
-    # Used later to check limits.
+    # Info on current state.
     slots_per_cleaner = utils.workload(variables)
+    current_working_time = utils.total_working_time(variables)
+    current_workload_std = utils.workload_std(variables)
 
-    print(slots_per_cleaner)
+    # print(slots_per_cleaner)
 
-    # I need to select only relevant variables.
+    # Select ones and zeros.
     ones = np.nonzero(np.logical_and(existing_variables == 1, variables == 1))
     zeros = np.nonzero(np.logical_and(existing_variables == 1, variables == 0))
 
@@ -84,16 +83,15 @@ def _hill_climbing(
     # Only swapping ones with zeros does something.
     actions = list(itertools.product(zeros, ones))
 
-    print(f"I have {len(actions)} possible actions.")
-
     def is_valid_action(action):
         FLAG = False
         one_c, one_t, one_k = action[1]
         zero_c, zero_t, zero_k = action[0]
 
         if one_c == zero_c and one_k == zero_k == 6:
-            FLAG = True
-            print(f"Action of moving class {one_c} for guy 6 from {one_t} to {zero_t}.")
+            pass
+            # FLAG = True
+            # print(f"Action of moving class {one_c} for guy 6 from {one_t} to {zero_t}.")
 
         # Check if classroom can be cleaned and worker can work.
         if not workers[zero_k][zero_t] or not classrooms[zero_c][zero_t]:
@@ -129,13 +127,16 @@ def _hill_climbing(
                     print("Rejected at condition 5.")
                 return False
 
-        # Check worker is only in one place.
-
         return True
 
     valid_actions = list(filter(is_valid_action, actions))
 
-    print(f"I have {len(valid_actions)} valid actions that I can take.")
+    # If no valid actions are allowed, this is a dead end.
+    if not valid_actions:
+        print(f"{utils.who()} Reached a dead end.")
+        return variables
+
+    print(f"{utils.who()} There are {len(valid_actions)} valid actions that I can take.")
 
     working_time = list()
     workload_std = list()
@@ -148,13 +149,46 @@ def _hill_climbing(
         # Revert action
         revert(variables, a)
 
-    # I must be able to compute the total cost.
-    sorted_actions = list(sorted(zip(valid_actions, working_time, workload_std), key=lambda x: (x[1], x[2])))
+    # Compute cost for each action.
+    sorted_actions = sorted(zip(valid_actions, working_time, workload_std), key=lambda x: (x[1], x[2]))
 
-    print(sorted_actions[:100])
+    # Std in new state can be interpreted as follows:
+    # - Equal: I am moving an hour of a single worker.
+    # - Lower: I am moving a classroom from a worker to another one with less hours.
+    # - Higher: I am moving a classroom from a worker to another one that already has more hours.
+    for good_action in sorted_actions:
+        a, new_time, new_std = good_action
+        # When the working time decreases, the std must remain lower or equal.
+        if new_time < current_working_time and new_std <= current_workload_std:
+            print(f"{utils.who()} {a} has been chosen.")
+            act(variables, a)
+            return _hill_climbing(
+                existing_variables,
+                classrooms,
+                workers,
+                limits,
+                max_consecutive,
+                n_classrooms,
+                n_time_slots,
+                n_workers,
+                variables
+            )
+        # When the working time remains equal, the std must be lower.
+        if new_time == current_working_time and new_std < current_workload_std:
+            print(f"{utils.who()} {a} has been chosen.")
+            act(variables, a)
+            return _hill_climbing(
+                existing_variables,
+                classrooms,
+                workers,
+                limits,
+                max_consecutive,
+                n_classrooms,
+                n_time_slots,
+                n_workers,
+                variables
+            )
+        # Else, the action does not improve upon our situation.
 
-    print("But why tho")
-    # print(list(filter(lambda x: x[0][2] == 6 and x[1][2] == 6, actions)))
-
-    # TODO Currently does nothing.
+    # Reached local maxima
     return variables
