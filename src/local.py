@@ -8,37 +8,6 @@ import itertools
 import numpy as np
 
 
-def total_working_time(variables) -> int:
-    """
-    Sum the difference between start and end time for each worker.
-
-    :param variables: The current assignment.
-    :return: The sum of the working hours for each worker.
-    """
-    _, _, K = variables.shape
-    total_time = 0
-    for k in range(K):
-        # When does the person work.
-        working_when = np.sum(variables[:, :, k], axis=0)
-        working_slots = np.nonzero(working_when)[0]
-        # Does not work, skip
-        if len(working_slots) == 0:
-            continue
-        # Works last - first + 1 total slots.
-        total_time += working_slots[-1] - working_slots[0] + 1
-    return total_time
-
-
-def total_std(variables) -> float:
-    """
-    :param variables: The current assignment.
-    :return: The standard deviations of the workload per worker.
-    """
-    _, _, K = variables.shape
-    time_per_worker = [np.sum(variables[:, :, k]) for k in range(K)]
-    return float(np.std(np.array(time_per_worker)))
-
-
 def act(variables, action):
     """
     Apply action to variables, modifying them.
@@ -74,9 +43,6 @@ def hill_climbing(classrooms, limits, workers, max_consecutive, solution):
 
     n_classrooms, n_time_slots, n_workers = utils.problem_size(workers, limits, classrooms)
 
-    # Used later to check limits.
-    slots_per_cleaner = utils.classrooms_per_cleaner(n_workers, solution)
-
     variables_exist = np.zeros((n_classrooms, n_time_slots, n_workers))
     variables = np.zeros((n_classrooms, n_time_slots, n_workers))
 
@@ -84,6 +50,11 @@ def hill_climbing(classrooms, limits, workers, max_consecutive, solution):
         c, t, k = utils.var_to_num(var)
         variables_exist[c, t, k] = 1
         variables[c, t, k] = value
+
+    # Used later to check limits.
+    slots_per_cleaner = utils.workload(variables)
+
+    print(slots_per_cleaner)
 
     # I need to select only relevant variables.
     ones = np.nonzero(np.logical_and(variables_exist == 1, variables == 1))
@@ -154,8 +125,8 @@ def hill_climbing(classrooms, limits, workers, max_consecutive, solution):
         # Apply action
         act(variables, a)
         # Compute working time
-        working_time.append(total_working_time(variables))
-        workload_std.append(total_std(variables))
+        working_time.append(utils.total_working_time(variables))
+        workload_std.append(utils.workload_std(variables))
         # Revert action
         revert(variables, a)
 

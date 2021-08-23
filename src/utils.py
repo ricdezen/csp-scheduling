@@ -17,7 +17,7 @@ def var_to_num(var: str) -> Tuple[int, int, int]:
     return int(classroom), int(time_slot), int(worker)
 
 
-def problem_size(cleaners, limits, classrooms) -> Tuple[int, int, int]:
+def problem_size(workers, limits, classrooms) -> Tuple[int, int, int]:
     """
     Infer problem size.
     :return: A tuple made of the number of classrooms, the number of timeslots, the number of workers.
@@ -25,37 +25,49 @@ def problem_size(cleaners, limits, classrooms) -> Tuple[int, int, int]:
              ValueError if there are not enough limits to cover the workers.
     """
     # Constants can be inferred directly from data size.
-    if cleaners.shape[1] != classrooms.shape[1]:
-        raise ValueError(f"{cleaners.shape[1]} time slots for cleaners, but {classrooms.shape[1]} for classrooms.")
-    if cleaners.shape[0] != limits.shape[0]:
-        raise ValueError(f"{cleaners.shape[0]} cleaners found but {limits.shape[0]} time slot limits.")
+    if workers.shape[1] != classrooms.shape[1]:
+        raise ValueError(f"{workers.shape[1]} time slots for workers, but {classrooms.shape[1]} for classrooms.")
+    if workers.shape[0] != limits.shape[0]:
+        raise ValueError(f"{workers.shape[0]} workers found but {limits.shape[0]} time slot limits.")
 
-    return classrooms.shape[0], cleaners.shape[1], cleaners.shape[0]
+    return classrooms.shape[0], workers.shape[1], workers.shape[0]
 
 
-def classrooms_per_cleaner(n_workers, solution) -> List[int]:
+def workload(variables) -> List[int]:
     """
-    :param n_workers: The total number of workers. Needed cause some might not have corresponding variables.
-    :param solution: The solution to evaluate.
-    :return: A list containing how many classrooms are assigned to each cleaner.
+    :param variables: The current assignment matrix.
+    :return: A list with the working time slots per worker.
     """
-    vars_per_worker = {x: list() for x in range(n_workers)}
-    selected = [var for var in solution if solution[var]]
-    for var in selected:
-        # Add each variable to its cleaner.
-        _, _, worker = var_to_num(var)
-        vars_per_worker[worker].append(var)
-    # Return how many working time slots for each cleaner.
-    return [len(vars_per_worker[c]) for c in range(n_workers)]
+    return [int(np.sum(variables[:, :, k])) for k in range(variables.shape[2])]
 
 
-def solution_std(n_workers, solution) -> float:
+def total_working_time(variables) -> int:
     """
-    :param n_workers: The total number of workers. Needed cause some might not have corresponding variables.
-    :param solution: The solution to evaluate.
+    Sum the difference between start and end time for each worker.
+
+    :param variables: The current assignment matrix.
+    :return: The sum of the working hours for each worker.
+    """
+    _, _, K = variables.shape
+    total_time = 0
+    for k in range(K):
+        # When does the person work.
+        working_when = np.sum(variables[:, :, k], axis=0)
+        working_slots = np.nonzero(working_when)[0]
+        # Does not work, skip
+        if len(working_slots) == 0:
+            continue
+        # Works last - first + 1 total slots.
+        total_time += working_slots[-1] - working_slots[0] + 1
+    return total_time
+
+
+def workload_std(variables) -> float:
+    """
+    :param variables: The current assignment matrix.
     :return: The standard deviation of the rooms per cleaner.
     """
-    return float(np.std(np.array(classrooms_per_cleaner(n_workers, solution))))
+    return float(np.std(np.array(workload(variables))))
 
 
 def print_solution(solution):

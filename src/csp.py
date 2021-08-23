@@ -15,7 +15,7 @@ from constraint import ExactSumConstraint, MaxSumConstraint, BacktrackingSolver
 MAX_CONSECUTIVE_SLOTS = 4
 
 
-def get_problem(workers, limits, classrooms) -> constraint.Problem:
+def get_csp_problem(workers, limits, classrooms) -> constraint.Problem:
     """
     :param workers: 2D array with each row having the available time slots for each worker.
     :param limits: 1D array with the max number of hours per cleaner. Negative value means no limit.
@@ -125,10 +125,9 @@ def main():
     for _ in range(41 // 5):
         classrooms[np.random.choice(range(41))] = [1] * 4 + [0] * 8 + [1] * 4
 
-    problem = get_problem(cleaners, limits, classrooms)
+    problem = get_csp_problem(cleaners, limits, classrooms)
     solution = problem.getSolution()
-    print(utils.classrooms_per_cleaner(len(cleaners), solution))
-    # utils.print_solution(solution)
+    utils.print_solution(solution)
 
     import local
 
