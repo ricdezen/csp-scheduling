@@ -57,11 +57,11 @@ def revert(variables, action):
     variables[action[1]] = 1
 
 
-def hill_climbing(classrooms, limits, cleaners, max_consecutive, solution):
+def hill_climbing(classrooms, limits, workers, max_consecutive, solution):
     """
     Attempt to improve a solution.
 
-    :param cleaners: 2D array with each row having the available time slots for each cleaner.
+    :param workers: 2D array with each row having the available time slots for each cleaner.
     :param limits: 1D array with the max number of hours per cleaner. Negative value means no limit.
     :param classrooms: 2D array with each row having the available time slots for each classroom.
     :param max_consecutive: Maximum consecutive slots.
@@ -72,13 +72,13 @@ def hill_climbing(classrooms, limits, cleaners, max_consecutive, solution):
 
     # Step 2: improve trying to reduce total work-time (work + breaks) of personnel.
 
-    n_classrooms, n_time_slots, n_cleaners = utils.problem_size(cleaners, limits, classrooms)
+    n_classrooms, n_time_slots, n_workers = utils.problem_size(workers, limits, classrooms)
 
     # Used later to check limits.
-    slots_per_cleaner = utils.classrooms_per_cleaner(n_cleaners, solution)
+    slots_per_cleaner = utils.classrooms_per_cleaner(n_workers, solution)
 
-    variables_exist = np.zeros((n_classrooms, n_time_slots, n_cleaners))
-    variables = np.zeros((n_classrooms, n_time_slots, n_cleaners))
+    variables_exist = np.zeros((n_classrooms, n_time_slots, n_workers))
+    variables = np.zeros((n_classrooms, n_time_slots, n_workers))
 
     for var, value in solution.items():
         c, t, k = utils.var_to_num(var)
@@ -107,7 +107,7 @@ def hill_climbing(classrooms, limits, cleaners, max_consecutive, solution):
             print(f"Action of moving class {one_c} for guy 6 from {one_t} to {zero_t}.")
 
         # Check if classroom can be cleaned and worker can work.
-        if not cleaners[zero_k][zero_t] or not classrooms[zero_c][zero_t]:
+        if not workers[zero_k][zero_t] or not classrooms[zero_c][zero_t]:
             if FLAG:
                 print("Rejected at condition 1.")
             return False
@@ -167,4 +167,4 @@ def hill_climbing(classrooms, limits, cleaners, max_consecutive, solution):
     print("But why tho")
     # print(list(filter(lambda x: x[0][2] == 6 and x[1][2] == 6, actions)))
 
-    utils.draw_solution(cleaners, limits, classrooms, solution)
+    utils.draw_solution(workers, limits, classrooms, solution)

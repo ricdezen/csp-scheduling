@@ -15,33 +15,33 @@ from constraint import ExactSumConstraint, MaxSumConstraint, BacktrackingSolver
 MAX_CONSECUTIVE_SLOTS = 4
 
 
-def get_problem(cleaners, limits, classrooms) -> constraint.Problem:
+def get_problem(workers, limits, classrooms) -> constraint.Problem:
     """
-    :param cleaners: 2D array with each row having the available time slots for each cleaner.
+    :param workers: 2D array with each row having the available time slots for each worker.
     :param limits: 1D array with the max number of hours per cleaner. Negative value means no limit.
     :param classrooms: 2D array with each row having the available time slots for each classroom.
     :return: The csp problem.
     """
-    n_classrooms, n_time_slots, n_cleaners = utils.problem_size(cleaners, limits, classrooms)
+    n_classrooms, n_time_slots, n_workers = utils.problem_size(workers, limits, classrooms)
 
-    print(f"We have: {n_time_slots} time slots, {n_cleaners} cleaners and {n_classrooms} classrooms.")
+    print(f"We have: {n_time_slots} time slots, {n_workers} cleaners and {n_classrooms} classrooms.")
 
     problem = constraint.Problem()
     problem.setSolver(BacktrackingSolver(True))
 
     # I need to construct my variables.
     variables = list()
-    variables_by_cleaner = {x: list() for x in range(n_cleaners)}
+    variables_by_worker = {x: list() for x in range(n_workers)}
     variables_by_classroom = {x: list() for x in range(n_classrooms)}
     variables_by_time_slot = {x: list() for x in range(n_time_slots)}
     for c in range(n_classrooms):
         for t in range(n_time_slots):
-            for k in range(n_cleaners):
-                if cleaners[k][t] and classrooms[c][t]:
+            for k in range(n_workers):
+                if workers[k][t] and classrooms[c][t]:
                     # Variable exists.
                     var = utils.num_to_var(c, t, k)
                     variables.append(var)
-                    variables_by_cleaner[k].append(var)
+                    variables_by_worker[k].append(var)
                     variables_by_classroom[c].append(var)
                     variables_by_time_slot[t].append(var)
 
@@ -64,9 +64,9 @@ def get_problem(cleaners, limits, classrooms) -> constraint.Problem:
     print(f"Added constraints of type 1")
 
     # Constraint 2: no ubiquitous cleaners.
-    for k in range(n_cleaners):
+    for k in range(n_workers):
         for t in range(n_time_slots):
-            possible_classrooms = set(variables_by_cleaner[k]).intersection(set(variables_by_time_slot[t]))
+            possible_classrooms = set(variables_by_worker[k]).intersection(set(variables_by_time_slot[t]))
             # Ensure the cleaner can clean a certain class at a certain moment.
             if possible_classrooms:
                 problem.addConstraint(MaxSumConstraint(1), list(possible_classrooms))
@@ -74,8 +74,8 @@ def get_problem(cleaners, limits, classrooms) -> constraint.Problem:
     print(f"Added constraints of type 2")
 
     # Constraint 3: cleaners need a break every 4 consecutive classrooms.
-    for k in range(n_cleaners):
-        vars_by_cleaner = set(variables_by_cleaner[k])
+    for k in range(n_workers):
+        vars_by_worker = set(variables_by_worker[k])
         for x in range(0, n_time_slots - MAX_CONSECUTIVE_SLOTS):
             # For each possible 5 consecutive time slots, max 4 classrooms.
             possible_classrooms = set()
@@ -83,7 +83,7 @@ def get_problem(cleaners, limits, classrooms) -> constraint.Problem:
             for j in range(x, x + MAX_CONSECUTIVE_SLOTS + 1):
                 # Variables of this cleaner in this time slot.
                 possible_classrooms = possible_classrooms.union(
-                    vars_by_cleaner.intersection(set(variables_by_time_slot[j]))
+                    vars_by_worker.intersection(set(variables_by_time_slot[j]))
                 )
             # Ensure this is a plausible combination.
             if possible_classrooms:
@@ -92,9 +92,9 @@ def get_problem(cleaners, limits, classrooms) -> constraint.Problem:
     print(f"Added constraints of type 3")
 
     # Constraint 4: cleaners have some upper total time slot limit.
-    for k in range(n_cleaners):
-        if limits[k] >= 0 and variables_by_cleaner[k]:
-            problem.addConstraint(MaxSumConstraint(limits[k]), variables_by_cleaner[k])
+    for k in range(n_workers):
+        if limits[k] >= 0 and variables_by_worker[k]:
+            problem.addConstraint(MaxSumConstraint(limits[k]), variables_by_worker[k])
 
     print(f"Added constraints of type 4")
 
