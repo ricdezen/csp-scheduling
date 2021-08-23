@@ -126,7 +126,7 @@ def print_solution(solution):
         print(f"Classroom {classroom} is going to be cleaned at hour {time} by {worker}")
 
 
-def draw_solution(problem: Problem, solution):
+def draw_solution(problem: Problem, solution: Dict):
     """
     Show a solution as a time (rows) by classroom (columns) time-table, with cells being color-coded to workers.
 

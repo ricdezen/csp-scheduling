@@ -34,27 +34,13 @@ class ProblemWrapper(Problem):
         self.existing_variables = utils.existing_variables(workers, classrooms)
 
     # Get single unoptimized csp solution.
-    def solution_raw(self):
+    def solution(self):
         return self.csp.getSolution()
 
     # Get an iterator to the raw csp solutions.
-    def solutions_raw(self):
-        for solution in self.csp.getSolutionIter():
-            yield solution
-
-    # Get a solution improved by local search.
-    def solution(self):
-        solution = self.csp.getSolution()
-        variables = utils.dictionary_to_matrix(self, solution)
-        improved = local.hill_climbing(self, variables)
-        return utils.matrix_to_dictionary(self, improved)
-
-    # Get an iterator to the solutions, improved by local search.
     def solutions(self):
         for solution in self.csp.getSolutionIter():
-            variables = utils.dictionary_to_matrix(self, solution)
-            improved = local.hill_climbing(self, variables)
-            return utils.matrix_to_dictionary(self, improved)
+            yield solution
 
 
 def get_csp_problem(workers, limits, classrooms, max_consecutive) -> constraint.Problem:
