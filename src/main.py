@@ -30,17 +30,18 @@ def main():
     base_solution = problem.solution()
     utils.plot_by_classroom(problem, base_solution)
     utils.plot_by_worker(problem, base_solution)
+    utils.plot_together(problem, base_solution)
 
     better_solution_hill = local.hill_climbing(problem, utils.dictionary_to_matrix(problem, base_solution))
     better_solution_ann = local.simulated_annealing(problem, utils.dictionary_to_matrix(problem, base_solution))
 
     print(utils.total_working_time(better_solution_hill))
     print(utils.workload_std(better_solution_hill))
-    utils.plot_by_classroom(problem, utils.matrix_to_dictionary(problem, better_solution_hill))
+    utils.plot_together(problem, utils.matrix_to_dictionary(problem, better_solution_hill))
 
     print(utils.total_working_time(better_solution_ann))
     print(utils.workload_std(better_solution_ann))
-    utils.plot_by_classroom(problem, utils.matrix_to_dictionary(problem, better_solution_ann))
+    utils.plot_together(problem, utils.matrix_to_dictionary(problem, better_solution_ann))
 
     """
     results = dict()

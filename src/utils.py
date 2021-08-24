@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 
 from typing import List, Tuple, Dict
 from matplotlib import cm
+from matplotlib import patches
 from common import Problem
 
 _variable_regex = re.compile(r"X_(\d+)_(\d+)_(\d+)")
@@ -133,11 +134,22 @@ def plot_by_classroom(problem: Problem, solution: Dict):
     :param problem: The problem.
     :param solution: The solution to display.
     """
-    figure = plt.figure()
-    axes = figure.add_axes([0.1, 0.1, 0.8, 0.8])
-
-    selected = [var for var in solution if solution[var]]
     colors = cm.tab20(range(problem.n_workers))
+
+    # Plot solution
+    figure = plt.figure()
+    axes = figure.add_axes([0.12, 0.1, 0.65, 0.8])
+    _plot_by_classroom(axes, problem, solution, colors)
+
+    # Add a legend
+    items = [patches.Patch(color=colors[w], label=f"Worker {w}") for w in range(problem.n_workers)]
+    axes.legend(handles=items, bbox_to_anchor=(1.3, 1), loc='upper right')
+
+    plt.show()
+
+
+def _plot_by_classroom(axes, problem: Problem, solution: Dict, colors):
+    selected = [var for var in solution if solution[var]]
 
     image = np.zeros((problem.n_time_slots, problem.n_classrooms, 4))
     for c in range(problem.n_classrooms):
@@ -149,14 +161,18 @@ def plot_by_classroom(problem: Problem, solution: Dict):
         classroom, time, worker = var_to_num(var)
         image[time, classroom] = colors[worker]
 
-    axes.imshow(image)
+    axes.imshow(image, aspect="auto")
+
     # Set horizontal classroom ticks.
     axes.set_xticks(range(0, problem.n_classrooms))
     axes.set_xticklabels(range(1, problem.n_classrooms + 1), rotation=270)
+
     # Set vertical time ticks.
     axes.set_yticks(range(0, problem.n_time_slots))
     axes.set_yticklabels(problem.time_ticks)
-    plt.show()
+
+    axes.set_xlabel("Classrooms")
+    axes.set_ylabel("Time")
 
 
 def plot_by_worker(problem: Problem, solution: Dict):
@@ -166,11 +182,22 @@ def plot_by_worker(problem: Problem, solution: Dict):
     :param problem: The problem.
     :param solution: The solution to display.
     """
-    figure = plt.figure()
-    axes = figure.add_axes([0.1, 0.1, 0.8, 0.8])
-
-    selected = [var for var in solution if solution[var]]
     colors = cm.tab20(range(problem.n_workers))
+
+    # Plot solution
+    figure = plt.figure()
+    axes = figure.add_axes([0.12, 0.1, 0.65, 0.8])
+    _plot_by_worker(axes, problem, solution, colors)
+
+    # Add a legend
+    items = [patches.Patch(color=colors[w], label=f"Worker {w}") for w in range(problem.n_workers)]
+    axes.legend(handles=items, bbox_to_anchor=(1.3, 1), loc='upper right')
+
+    plt.show()
+
+
+def _plot_by_worker(axes, problem: Problem, solution: Dict, colors):
+    selected = [var for var in solution if solution[var]]
 
     image = np.zeros((problem.n_workers, problem.n_time_slots, 4))
     for w in range(problem.n_workers):
@@ -182,12 +209,29 @@ def plot_by_worker(problem: Problem, solution: Dict):
         classroom, time, worker = var_to_num(var)
         image[worker, time] = colors[worker]
 
-    axes.imshow(image)
+    axes.imshow(image, aspect="auto")
+
     # Set horizontal time ticks.
     axes.set_xticks(range(0, problem.n_time_slots))
     axes.set_xticklabels(problem.time_ticks, rotation=270)
+
     # Remove vertical worker ticks.
     axes.set_yticks([])
+
+    axes.set_xlabel("Time")
+
+
+def plot_together(problem: Problem, solution: Dict):
+    colors = cm.tab20(range(problem.n_workers))
+
+    # Plot
+    figure, axes = plt.subplots(2)
+    _plot_by_classroom(axes[0], problem, solution, colors)
+    _plot_by_worker(axes[1], problem, solution, colors)
+
+    # Show legend.
+    items = [patches.Patch(color=colors[w], label=f"Worker {w}") for w in range(problem.n_workers)]
+    plt.legend(handles=items, loc='lower right')
 
     plt.show()
 
