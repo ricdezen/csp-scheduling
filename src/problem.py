@@ -4,22 +4,41 @@ import numpy as np
 import local
 
 from common import Problem
+from datetime import datetime, timedelta
 from constraint import ExactSumConstraint, MaxSumConstraint, BacktrackingSolver
 
 
 class ProblemWrapper(Problem):
 
-    def __init__(self, workers: np.ndarray, limits: np.ndarray, classrooms: np.ndarray, max_consecutive: int):
+    def __init__(
+            self,
+            workers: np.ndarray,
+            limits: np.ndarray,
+            classrooms: np.ndarray,
+            max_consecutive: int,
+            starting_time: str = "13:00",
+            time_slot_in_min: int = 15
+    ):
         """
         :param workers: A numpy array containing the time slots at which each worker is available, one worker per row.
         :param limits: A numpy array containing the maximum time slots each worker can work in a day.
         :param classrooms: A numpy array containing the time slots in which each classroom can be cleaned.
         :param max_consecutive: The maximum number of consecutive time slots a worker can work.
+        :param starting_time: HH:MM string indicating the starting time. Used for time axis when plotting a solution.
+        :param time_slot_in_min: How many minutes a time slot is long. Used for time axis when plotting a solution.
         """
         super().__init__()
 
+        # Parsing time.
+        self.starting_time = datetime.strptime(starting_time, "%H:%M")
+        if not isinstance(time_slot_in_min, int) or time_slot_in_min <= 0:
+            raise ValueError(f"Time slot duration '{time_slot_in_min}' is negative or non-integer.")
+
         # Infer problem size.
         self.n_classrooms, self.n_time_slots, self.n_workers = utils.problem_size(workers, limits, classrooms)
+
+        self.time_ticks = [(self.starting_time + timedelta(minutes=time_slot_in_min * i)).strftime("%H:%M")
+                           for i in range(self.n_time_slots)]
 
         # Copy the original data.
         self.workers = np.copy(workers)
@@ -84,21 +103,21 @@ def get_csp_problem(workers, limits, classrooms, max_consecutive) -> constraint.
     # Variables can either be 0 or 1.
     problem.addVariables(variables, [0, 1])
 
-    # Constraint 1: each classroom must be cleaned only once.
-    for c in range(n_classrooms):
-        # Ensure classroom has variables.
-        if variables_by_classroom[c]:
-            problem.addConstraint(ExactSumConstraint(1), variables_by_classroom[c])
-
-    print(f"{utils.who()} Added constraints of type 1")
-
-    # Constraint 2: no ubiquitous cleaners.
+    # Constraint 1: no ubiquitous cleaners.
     for k in range(n_workers):
         for t in range(n_time_slots):
             possible_classrooms = set(variables_by_worker[k]).intersection(set(variables_by_time_slot[t]))
             # Ensure the cleaner can clean a certain class at a certain moment.
             if possible_classrooms:
                 problem.addConstraint(MaxSumConstraint(1), list(possible_classrooms))
+
+    print(f"{utils.who()} Added constraints of type 1")
+
+    # Constraint 2: each classroom must be cleaned only once.
+    for c in range(n_classrooms):
+        # Ensure classroom has variables.
+        if variables_by_classroom[c]:
+            problem.addConstraint(ExactSumConstraint(1), variables_by_classroom[c])
 
     print(f"{utils.who()} Added constraints of type 2")
 

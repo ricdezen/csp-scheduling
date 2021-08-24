@@ -10,3 +10,4 @@ class Problem(object):
         self.n_classrooms = None
         self.n_time_slots = None
         self.n_workers = None
+        self.time_ticks = None

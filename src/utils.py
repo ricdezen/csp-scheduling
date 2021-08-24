@@ -126,13 +126,15 @@ def print_solution(solution):
         print(f"Classroom {classroom} is going to be cleaned at hour {time} by {worker}")
 
 
-def draw_solution(problem: Problem, solution: Dict):
+def plot_by_classroom(problem: Problem, solution: Dict):
     """
     Show a solution as a time (rows) by classroom (columns) time-table, with cells being color-coded to workers.
 
     :param problem: The problem.
     :param solution: The solution to display.
     """
+    figure = plt.figure()
+    axes = figure.add_axes([0.1, 0.1, 0.8, 0.8])
 
     selected = [var for var in solution if solution[var]]
     colors = cm.tab20(range(problem.n_workers))
@@ -147,7 +149,46 @@ def draw_solution(problem: Problem, solution: Dict):
         classroom, time, worker = var_to_num(var)
         image[time, classroom] = colors[worker]
 
-    plt.imshow(image)
+    axes.imshow(image)
+    # Set horizontal classroom ticks.
+    axes.set_xticks(range(0, problem.n_classrooms))
+    axes.set_xticklabels(range(1, problem.n_classrooms + 1), rotation=270)
+    # Set vertical time ticks.
+    axes.set_yticks(range(0, problem.n_time_slots))
+    axes.set_yticklabels(problem.time_ticks)
+    plt.show()
+
+
+def plot_by_worker(problem: Problem, solution: Dict):
+    """
+    Show a solution as a worker (rows) by time (columns) time-table, with cells being color-coded to workers.
+
+    :param problem: The problem.
+    :param solution: The solution to display.
+    """
+    figure = plt.figure()
+    axes = figure.add_axes([0.1, 0.1, 0.8, 0.8])
+
+    selected = [var for var in solution if solution[var]]
+    colors = cm.tab20(range(problem.n_workers))
+
+    image = np.zeros((problem.n_workers, problem.n_time_slots, 4))
+    for w in range(problem.n_workers):
+        for t in range(problem.n_time_slots):
+            if not problem.workers[w][t]:
+                image[w, t] = (0.5, 0.5, 0.5, 1)
+
+    for var in selected:
+        classroom, time, worker = var_to_num(var)
+        image[worker, time] = colors[worker]
+
+    axes.imshow(image)
+    # Set horizontal time ticks.
+    axes.set_xticks(range(0, problem.n_time_slots))
+    axes.set_xticklabels(problem.time_ticks, rotation=270)
+    # Remove vertical worker ticks.
+    axes.set_yticks([])
+
     plt.show()
 
 
