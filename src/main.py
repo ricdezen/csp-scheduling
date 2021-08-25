@@ -144,28 +144,24 @@ def main():
     print(f"Total working time slots: {utils.total_working_time(base_solution_mat)}")
     print(f"Workload standard deviation: {utils.workload_std(base_solution_mat)}")
     print()
-    # utils.plot_together(problem, base_solution)
+    utils.plot_together(problem, base_solution)
 
     # Show score and Hill climbing solution.
     print("Hill Climbing results:")
     print(f"Total working time slots: {utils.total_working_time(better_solution_hill_mat)}")
     print(f"Workload standard deviation: {utils.workload_std(better_solution_hill_mat)}")
     print()
-    # utils.plot_together(problem, better_solution_hill)
+    utils.plot_together(problem, better_solution_hill)
 
     # Show score and plot Annealing solution.
     print("Simulated Annealing results:")
     print(f"Total working time slots: {utils.total_working_time(better_solution_ann_mat)}")
     print(f"Workload standard deviation: {utils.workload_std(better_solution_ann_mat)}")
     print()
-    # utils.plot_together(problem, better_solution_ann)
+    utils.plot_together(problem, better_solution_ann)
 
     # benchmark(problem)
 
-
-# Base: 74.32 71.34 72.32
-# Hill: 70.44 70.75 69.75
-# Anne: 66.26 66.62 66.44
 
 if __name__ == "__main__":
     main()
