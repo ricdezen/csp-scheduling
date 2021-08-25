@@ -33,8 +33,7 @@ def revert(variables, action):
 
 def hill_climbing(problem: Problem, variables: np.ndarray):
     """
-    Attempt to improve a state via hill climbing. Passing a copy of variables is recommended because it WILL be modified
-    at each step.
+    Attempt to improve a state via hill climbing.
 
     :param problem: The problem for which to improve the state.
     :param variables: The current assignment.
@@ -49,7 +48,7 @@ def hill_climbing(problem: Problem, variables: np.ndarray):
         problem.n_classrooms,
         problem.n_time_slots,
         problem.n_workers,
-        variables
+        np.copy(variables)
     )
 
 
@@ -71,6 +70,7 @@ def _hill_climbing(
 
     # Info on current state.
     slots_per_cleaner = utils.workload(variables)
+    working_when_all = [np.sum(variables[:, :, w], axis=0) for w in range(n_workers)]
     current_working_time = utils.total_working_time(variables)
     current_workload_std = utils.workload_std(variables)
 
@@ -106,13 +106,17 @@ def _hill_climbing(
             return False
 
         # Ensure no consecutive slot shifts are formed.
-        working_when = np.sum(variables[:, :, zero_k], axis=0)
+        working_when = working_when_all[zero_k]
         working_when[zero_t] = 1  # Pretend to assign the classroom.
         start = max(0, zero_t - max_consecutive)
         end = min(zero_t, n_time_slots - max_consecutive - 1)
         for i in range(start, end + 1):
             if np.sum(working_when[i:i + max_consecutive + 1]) > max_consecutive:
+                # Reset working_when
+                working_when[zero_t] = 0
                 return False
+        # Reset working_when
+        working_when[zero_t] = 0
 
         return True
 
@@ -200,23 +204,26 @@ def simulated_annealing(
         variables: np.ndarray,
         max_steps: int = 1000,
         initial_t: float = 1000,
-        cooling_factor=0.99
+        cooling_factor: float = 0.99,
+        max_dead_ends: int = 10
 ):
     """
-    Attempt to improve a state via simulated annealing. Passing a copy of variables is recommended because it WILL be
-    modified at each step.
+    Attempt to improve a state via simulated annealing.
 
     :param problem: The problem for which to improve the state.
     :param variables: The current assignment.
     :param max_steps: Maximum number of steps that can be taken. Defaults to 1000.
     :param initial_t: The initial temperature. Defaults to 1000.
     :param cooling_factor: The multiplicative cooling factor between steps. Defaults to 0.99.
+    :param max_dead_ends: The maximum number of consecutive dead ends before stopping.
     :return: The resulting state, if one is found.
     """
     # Geometric cooling scheme. From initial temperature
+    variables = np.copy(variables)
     temperature = initial_t
+    dead_ends = 0
     for _ in range(max_steps):
-        variables = _simulated_annealing(
+        new_variables = _simulated_annealing(
             problem.existing_variables,
             problem.classrooms,
             problem.workers,
@@ -228,6 +235,15 @@ def simulated_annealing(
             variables,
             temperature
         )
+        # Count consecutive dead ends.
+        if new_variables is None:
+            dead_ends += 1
+        else:
+            # Don't need to assign variables = new_variables because they point to the same object.
+            dead_ends = 0
+        # Check max dead ends.
+        if dead_ends > max_dead_ends:
+            return variables
         temperature = temperature * cooling_factor
 
     return variables
@@ -244,15 +260,17 @@ def _simulated_annealing(
         n_workers: int,
         variables: np.ndarray,
         temperature: float
-) -> np.ndarray:
+) -> Optional[np.ndarray]:
     """
     Actual implementation of the `simulated_annealing` function. Not recursive, applies a single step.
+    WILL modify variables.
     """
     # Try to reduce total work-time (work + breaks) and std.
 
     # Info on current state.
     slots_per_cleaner = utils.workload(variables)
     current_energy = energy(variables)
+    working_when_all = [np.sum(variables[:, :, w], axis=0) for w in range(n_workers)]
 
     # Select ones and zeros.
     ones = np.nonzero(np.logical_and(existing_variables == 1, variables == 1))
@@ -285,14 +303,18 @@ def _simulated_annealing(
         if zero_k != one_k and (0 <= limits[zero_k] < slots_per_cleaner[zero_k] + 1):
             return False
 
-        # Ensure no consecutive 5 slot shifts are formed.
-        working_when = np.sum(variables[:, :, zero_k], axis=0)
+        # Ensure no consecutive slot shifts are formed.
+        working_when = working_when_all[zero_k]
         working_when[zero_t] = 1  # Pretend to assign the classroom.
         start = max(0, zero_t - max_consecutive)
         end = min(zero_t, n_time_slots - max_consecutive - 1)
         for i in range(start, end + 1):
             if np.sum(working_when[i:i + max_consecutive + 1]) > max_consecutive:
+                # Reset working_when
+                working_when[zero_t] = 0
                 return False
+        # Reset working_when
+        working_when[zero_t] = 0
 
         return True
 
@@ -301,7 +323,7 @@ def _simulated_annealing(
     # If no valid actions are allowed, this is a dead end.
     if not valid_actions:
         print(f"{utils.who()} Reached a dead end.")
-        return variables
+        return None
 
     print(f"{utils.who()} There are {len(valid_actions)} valid actions that I can take.")
 
