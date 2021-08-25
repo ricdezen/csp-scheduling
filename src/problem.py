@@ -103,6 +103,8 @@ def get_csp_problem(workers, limits, classrooms, max_consecutive) -> constraint.
     # Variables can either be 0 or 1.
     problem.addVariables(variables, [0, 1])
 
+    n_constraints = 0  # Just for logging purposes.
+
     # Constraint 1: no ubiquitous cleaners.
     for k in range(n_workers):
         for t in range(n_time_slots):
@@ -110,16 +112,18 @@ def get_csp_problem(workers, limits, classrooms, max_consecutive) -> constraint.
             # Ensure the cleaner can clean a certain class at a certain moment.
             if possible_classrooms:
                 problem.addConstraint(MaxSumConstraint(1), list(possible_classrooms))
+                n_constraints += 1
 
-    print(f"{utils.who()} Added constraints of type 1")
+    print(f"{utils.who()} Added constraints of type 1. Now at {n_constraints} total.")
 
     # Constraint 2: each classroom must be cleaned only once.
     for c in range(n_classrooms):
         # Ensure classroom has variables.
         if variables_by_classroom[c]:
             problem.addConstraint(ExactSumConstraint(1), variables_by_classroom[c])
+            n_constraints += 1
 
-    print(f"{utils.who()} Added constraints of type 2")
+    print(f"{utils.who()} Added constraints of type 2. Now at {n_constraints} total.")
 
     # Constraint 3: cleaners need a break every 4 consecutive classrooms.
     for k in range(n_workers):
@@ -136,14 +140,16 @@ def get_csp_problem(workers, limits, classrooms, max_consecutive) -> constraint.
             # Ensure this is a plausible combination.
             if possible_classrooms:
                 problem.addConstraint(MaxSumConstraint(max_consecutive), possible_classrooms)
+                n_constraints += 1
 
-    print(f"{utils.who()} Added constraints of type 3")
+    print(f"{utils.who()} Added constraints of type 3. Now at {n_constraints} total.")
 
     # Constraint 4: cleaners have some upper total time slot limit.
     for k in range(n_workers):
         if limits[k] >= 0 and variables_by_worker[k]:
             problem.addConstraint(MaxSumConstraint(limits[k]), variables_by_worker[k])
+            n_constraints += 1
 
-    print(f"{utils.who()} Added constraints of type 4")
+    print(f"{utils.who()} Added constraints of type 4. Now at {n_constraints} total.")
 
     return problem
